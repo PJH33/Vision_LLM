@@ -77,10 +77,18 @@
             border-color: transparent transparent transparent #f0f0f0; /* White triangle */
             transform: translateY(-50%);
         }
+        .output-text-character-wrapper{
+            display: flex;
+            max-height: 180px;
+            margin-top:-120px;
+        }
+        .character-image-right{
+             width: 350px; /* 원하는 크기로 조정하세요 */
+            height: auto;
+        }
         .header-box {
             width: 100%;
             text-align: center;
-            padding: 20px;
             background-color: rgba(255, 255, 255, 0.9); /* 흰색 반투명 배경 */
             box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
             margin-bottom: 20px;
@@ -122,23 +130,21 @@
             margin-bottom: 10px;
             padding: 10px;
             background-color: #f0f0f0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
+
         }
         .center-content {
             display: flex;
             flex-direction: column;
             align-items: center;
         }
-        .output-image {
-            max-width: 720px;
-            height: auto;
-        }
-        .output-video {
-            max-width: 720px;
-            height: auto;
+        .output-image, .output-video {
+            width: 600px; /* 고정된 너비 */
+            height: auto; /* 고정된 높이 */
+            object-fit: cover; /* 이미지나 비디오가 영역을 꽉 채우도록 */
         }
         .output-text {
+            overflow: scroll;
+            margin: 0;
             font-size: 4em; /* 텍스트 크기를 2배로 설정 */
             white-space: pre-wrap; /* Ensure text inside <pre> wraps */
             word-wrap: break-word; /* Force long words to wrap */
@@ -164,7 +170,7 @@
 </head>
 <body>
     <div class="header-box">
-        <h1 class="header-title">AI Avatar for health care system</h1>
+        <h1 class="header-title">Avatar for health care system</h1>
     </div>
     <div class="container">
         <div class="left">
@@ -172,7 +178,7 @@
                 <div class="speech-bubble" id="speechBubble">
                     Please select category
                 </div>
-                <img src="{{ url_for('static', filename='images/character1.gif') }}" alt="Character" class="character-image">
+                <img src="{{ url_for('static', filename='images/character2.gif') }}" alt="Character" class="character-image">
             </div>
             
             <div class="content">
@@ -335,11 +341,20 @@
                 const solutions = response.response.solutions || 'undefined';
 
                 const text = `
-                    <pre class="output-text">
-                        <span class="output-line">Emotions: ${emotions}</span><br>
-                        <span class="output-line">Activities: ${activities}</span><br>
-                        <span class="output-line">Solutions: ${solutions}</span>
-                    </pre>`;
+                    <pre class="output-text">                
+                            <div class="output-text-character-wrapper" id="emotion">
+                                <img src="{{ url_for('static', filename='images/character1.gif') }}" alt="Character" class="character-image-right">
+                                <span class="output-line">Emotions: ${emotions}</span>
+                            </div>
+                            <div class="output-text-character-wrapper" id="activities">
+                                <img src="{{ url_for('static', filename='images/character1.gif') }}" alt="Character" class="character-image-right">
+                                <span class="output-line">Activities: ${activities}</span>
+                            </div>
+                            <div class="output-text-character-wrapper" id="solution">
+                                <img src="{{ url_for('static', filename='images/character1.gif') }}" alt="Character" class="character-image-right">
+                                <span class="output-line">Solutions: ${solutions}</span>
+                            </div>
+                        </pre>`;
                 outputDiv.innerHTML = `<img src="${response.image_base64}" alt="Captured Image" class="output-image">` + text;
                 document.getElementById('speechBubble').innerText = response.response_to_response; // 말풍선에 텍스트 표시
             } catch (error) {
@@ -366,10 +381,19 @@
                     const solutions = response.response.solutions || 'undefined';
 
                     const text = `
-                        <pre class="output-text">
-                            <span class="output-line">Emotions: ${emotions}</span><br>
-                            <span class="output-line">Activities: ${activities}</span><br>
-                            <span class="output-line">Solutions: ${solutions}</span>
+                        <pre class="output-text">                
+                            <div class="output-text-character-wrapper" id="emotion">
+                                <img src="{{ url_for('static', filename='images/character1.gif') }}" alt="Character" class="character-image-right">
+                                <span class="output-line">Emotions: ${emotions}</span>
+                            </div>
+                            <div class="output-text-character-wrapper" id="activities">
+                                <img src="{{ url_for('static', filename='images/character1.gif') }}" alt="Character" class="character-image-right">
+                                <span class="output-line">Activities: ${activities}</span>
+                            </div>
+                            <div class="output-text-character-wrapper" id="solution">
+                                <img src="{{ url_for('static', filename='images/character1.gif') }}" alt="Character" class="character-image-right">
+                                <span class="output-line">Solutions: ${solutions}</span>
+                            </div>
                         </pre>`;
                     outputDiv.innerHTML = `<img src="${response.image_base64}" alt="Uploaded Image" class="output-image">` + text;
                 } catch (error) {
@@ -407,11 +431,20 @@
                 const solutions = result.response.solutions || 'undefined';
 
                 const text = `
-                    <pre class="output-text">
-                        <span class="output-line">Emotions: ${emotions}</span><br>
-                        <span class="output-line">Activities: ${activities}</span><br>
-                        <span class="output-line">Solutions: ${solutions}</span>
-                    </pre>`;
+                   <pre class="output-text">                
+                            <div class="output-text-character-wrapper" id="emotion">
+                                <img src="{{ url_for('static', filename='images/character1.gif') }}" alt="Character" class="character-image-right">
+                                <span class="output-line">Emotions: ${emotions}</span>
+                            </div>
+                            <div class="output-text-character-wrapper" id="activities">
+                                <img src="{{ url_for('static', filename='images/character1.gif') }}" alt="Character" class="character-image-right">
+                                <span class="output-line">Activities: ${activities}</span>
+                            </div>
+                            <div class="output-text-character-wrapper" id="solution">
+                                <img src="{{ url_for('static', filename='images/character1.gif') }}" alt="Character" class="character-image-right">
+                                <span class="output-line">Solutions: ${solutions}</span>
+                            </div>
+                        </pre>`;
                 outputDiv.innerHTML = `<video controls class="output-video"><source src="data:video/mp4;base64,${result.video_base64}" type="video/mp4"></video>` + text;
             } catch (error) {
                 console.error('Error:', error);
@@ -434,10 +467,19 @@
                     const solutions = response.response.solutions || 'undefined';
 
                     const text = `
-                        <pre class="auto-capture-text">
-                            <span class="output-line">Emotions: ${emotions}</span><br>
-                            <span class="output-line">Activities: ${activities}</span><br>
-                            <span class="output-line">Solutions: ${solutions}</span>
+                        <pre class="output-text">                
+                            <div class="output-text-character-wrapper" id="emotion">
+                                <img src="{{ url_for('static', filename='images/character1.gif') }}" alt="Character" class="character-image-right">
+                                <span class="output-line">Emotions: ${emotions}</span>
+                            </div>
+                            <div class="output-text-character-wrapper" id="activities">
+                                <img src="{{ url_for('static', filename='images/character1.gif') }}" alt="Character" class="character-image-right">
+                                <span class="output-line">Activities: ${activities}</span>
+                            </div>
+                            <div class="output-text-character-wrapper" id="solution">
+                                <img src="{{ url_for('static', filename='images/character1.gif') }}" alt="Character" class="character-image-right">
+                                <span class="output-line">Solutions: ${solutions}</span>
+                            </div>
                         </pre>`;
                     const logEntry = document.createElement('div');
                     logEntry.innerHTML = text;
