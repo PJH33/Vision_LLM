@@ -5,6 +5,7 @@ import io
 import json
 import base64
 import os
+import cv2
 
 app = Flask(__name__)
 
@@ -23,75 +24,77 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 def home():
     return render_template('index.html')
 
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    if 'file' not in request.files:
-        return jsonify({'error': '파일이 없습니다'}), 400
+@app.route('/upload_video', methods=['POST'])
+def upload_video():
+    if 'video' not in request.files:
+        return jsonify({'error': '비디오 파일이 없습니다'}), 400
 
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': '선택된 파일이 없습니다'}), 400
+    video = request.files['video']
+    if video.filename == '':
+        return jsonify({'error': '선택된 비디오 파일이 없습니다'}), 400
 
     try:
-        image = Image.open(file.stream).convert('RGB')
-        buffered = io.BytesIO()
-        image.save(buffered, format="PNG")
-        img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
+        video_path = os.path.join(app.config['UPLOAD_FOLDER'], video.filename)
+        video.save(video_path)
+        frames = get_frames_from_video(video_path)
 
         question = """What kind of activities, emotions and solutions(about activities and emotions) are in this video?. Answer following JSON format,
-{"emotions": emotions, "activities": actions, "solutions": solutions}
-### Reply JSON but nothing else.###"""
-        msgs = [{'role': 'user', 'content': question}]
-
-        res = model.chat(
-            image=image,
-            msgs=msgs,
-            tokenizer=tokenizer,
-            sampling=True, 
-            temperature=0.7,
-        )
+        {"emotions": emotions, "activities": actions, "solutions": solutions}
+        ### Reply JSON but nothing else.###"""
+        
+        res = analyze_frames(frames, question, model, tokenizer)
 
         # 결과를 JSON으로 파싱
-        result_json = json.loads(res)
-
-        return jsonify({'result': result_json, 'image_base64': img_str}), 200
-
-    except Exception as e:
-        print(f"Error: {e}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/analyze', methods=['POST'])
-def analyze():
-    data = request.get_json()
-    frames = data['frames']
-    
-    try:
-        for frame in frames:
-            image_data = base64.b64decode(frame.split(',')[1])
-            image = Image.open(io.BytesIO(image_data)).convert('RGB')
-            
-            question = """What kind of activities, emotions and solutions(about activities and emotions) are in this image?. Answer following JSON format,
-{"emotions": emotions, "activities": actions, "solutions": solutions}
-### Reply JSON but nothing else.###"""
-            msgs = [{'role': 'user', 'content': question}]
-            
-            res = model.chat(
-                image=image,
-                msgs=msgs,
-                tokenizer=tokenizer,
-                sampling=True,
-                temperature=0.7,
-            )
-            
+        print("Model response:", res)  # 응답 디버깅 출력
+        try:
             result_json = json.loads(res)
-            response_text = f"Emotions: {result_json['emotions']}, Activities: {result_json['activities']}, Solutions: {result_json['solutions']}"
-            response_to_response_text = "This is the response to the response."
+            result_sentence = process_result(result_json)
+        except json.JSONDecodeError:
+            result_sentence = res  # JSON 파싱 실패 시 원본 응답 사용
 
-            return jsonify({'response': response_text, 'response_to_response': response_to_response_text}), 200
+        video.seek(0)
+        video_base64 = base64.b64encode(video.read()).decode('utf-8')
+
+        return jsonify({'result': result_sentence, 'video_base64': video_base64}), 200
 
     except Exception as e:
         print(f"Error: {e}")
         return jsonify({'error': str(e)}), 500
+
+def get_frames_from_video(video_path, num_frames=3):
+    vidcap = cv2.VideoCapture(video_path)
+    total_frames = int(vidcap.get(cv2.CAP_PROP_FRAME_COUNT))
+    frame_indices = [i * (total_frames // num_frames) for i in range(num_frames)]
+    
+    frames = []
+    for frame_index in frame_indices:
+        vidcap.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
+        success, image = vidcap.read()
+        if success:
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            frames.append(Image.fromarray(image).resize((480,270)))
+    
+    vidcap.release()
+    return frames
+
+def analyze_frames(frames, question, model, tokenizer):
+    msgs = [{'role': 'user', 'content': question}]
+    res = model.chat(
+        msgs=msgs,
+        image=frames,
+        context=None,
+        tokenizer=tokenizer,
+        sampling=True, # if sampling=False, beam_search will be used by default
+        temperature=0.7,
+    )
+    return res
+
+def process_result(result_json):
+    emotions = ', '.join(result_json['emotions']) if isinstance(result_json['emotions'], list) else result_json['emotions']
+    activities = ', '.join(result_json['activities']) if isinstance(result_json['activities'], list) else result_json['activities']
+    solutions = ', '.join(result_json['solutions']) if isinstance(result_json['solutions'], list) else result_json['solutions']
+    result_sentence = f"Emotions: {emotions}\nActivities: {activities}\nSolutions: {solutions}"
+    return result_sentence
 
 @app.route('/analyze_image', methods=['POST'])
 def analyze_image():
@@ -104,8 +107,8 @@ def analyze_image():
             image = Image.open(io.BytesIO(image_data)).convert('RGB')
 
             question = """What kind of activities, emotions and solutions(about activities and emotions) are in this image?. Answer following JSON format,
-{"emotions": emotions, "activities": actions, "solutions": solutions}
-### Reply JSON but nothing else.###"""
+            {"emotions": emotions, "activities": actions, "solutions": solutions}
+            ### Reply JSON but nothing else.###"""
             msgs = [{'role': 'user', 'content': question}]
             
             res = model.chat(
@@ -116,11 +119,16 @@ def analyze_image():
                 temperature=0.7,
             )
 
-            result_json = json.loads(res)
-            response_text = f"Emotions: {result_json['emotions']}, Activities: {result_json['activities']}, Solutions: {result_json['solutions']}"
+            print("Model response:", res)  # 응답 디버깅 출력
+            try:
+                result_json = json.loads(res)
+                result_sentence = process_result(result_json)
+            except json.JSONDecodeError:
+                result_sentence = res  # JSON 파싱 실패 시 원본 응답 사용
+
             response_to_response_text = "This is the response to the response."
 
-            return jsonify({'response': response_text, 'response_to_response': response_to_response_text}), 200
+            return jsonify({'response': result_sentence, 'response_to_response': response_to_response_text, 'image_base64': frame}), 200
 
     except Exception as e:
         print(f"Error: {e}")

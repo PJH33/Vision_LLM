@@ -92,7 +92,7 @@
 
             <div id="videoInput" style="display: none;">
                 <h2>Upload Video</h2>
-                <input type="file" id="videoFile">
+                <input type="file" id="videoFile" accept="video/*">
                 <button onclick="uploadVideo()">Upload</button>
             </div>
         
@@ -192,19 +192,12 @@
                 const dataURL = reader.result;
                 const response = await postData('/analyze_image', { frames: [dataURL] });
                 const text = response.response;
-                const emotionsPart = text.split("Emotions:")[1].split("Activities:")[0].trim();
-                const activitiesPart = text.split("Activities:")[1].split("Solutions:")[0].trim();
-                const solutionsPart = text.split("Solutions:")[1].trim();
-                const emotions = emotionsPart.replace(/,\s*$/, ''); // Remove trailing comma if present
-                const activities = activitiesPart.replace(/,\s*$/, ''); // Remove trailing comma if present
-                const solutions = solutionsPart.replace(/,\s*$/, '');
-                console.log(emotionsPart, activitiesPart, solutionsPart)
-                document.getElementById('output').innerHTML = `<p><strong>Emotions:</strong> ${emotions}</p><p><strong>Activities:</strong> ${activities}</p><p><strong>Solutions:</strong> ${solutions}</p>`;
+                document.getElementById('output').innerHTML = `<pre>${text}</pre><img src="${response.image_base64}" alt="Uploaded Image" style="max-width: 100%; height: auto;">`;
             };
             reader.readAsDataURL(file);
         }
 
-        function uploadVideo() {
+        async function uploadVideo() {
             var fileInput = document.getElementById('videoFile');
             var file = fileInput.files[0];
             if (!file) {
@@ -212,24 +205,17 @@
                 return;
             }
 
-            var formData = new FormData();
+            const formData = new FormData();
             formData.append('video', file);
 
-            $.ajax({
-                url: '/upload_video',
-                type: 'POST',
-                data: formData,
-                processData: false,
-                contentType: false,
-                success: function(response) {
-                    console.log('Video upload output:', response.output);
-                    document.getElementById('output').innerText = response.output; // 결과를 HTML 요소에 삽입
-                },
-                error: function(error) {
-                    console.log('Error:', error);
-                    document.getElementById('output').innerText = 'Error uploading video';
-                }
+            const response = await fetch('/upload_video', {
+                method: 'POST',
+                body: formData
             });
+
+            const result = await response.json();
+            const text = result.result;
+            document.getElementById('output').innerHTML = `<pre>${text}</pre><video controls style="max-width: 100%; height: auto;"><source src="data:video/mp4;base64,${result.video_base64}" type="video/mp4"></video>`;
         }
     </script>
 </body>
