@@ -50,12 +50,13 @@ def upload_video():
             result_json = json.loads(res)
             result_sentence = process_result(result_json)
         except json.JSONDecodeError:
+            result_json = {"emotions": "undefined", "activities": "undefined", "solutions": "undefined"}
             result_sentence = res  # JSON 파싱 실패 시 원본 응답 사용
 
         video.seek(0)
         video_base64 = base64.b64encode(video.read()).decode('utf-8')
 
-        return jsonify({'result': result_sentence, 'video_base64': video_base64}), 200
+        return jsonify({'response': result_json, 'video_base64': video_base64}), 200
 
     except Exception as e:
         print(f"Error: {e}")
@@ -102,33 +103,67 @@ def analyze_image():
     frames = data['frames']
 
     try:
-        for frame in frames:
-            image_data = base64.b64decode(frame.split(',')[1])
-            image = Image.open(io.BytesIO(image_data)).convert('RGB')
+        image_data = base64.b64decode(frames[0].split(',')[1])
+        image = Image.open(io.BytesIO(image_data)).convert('RGB')
 
-            question = """What kind of activities, emotions and solutions(about activities and emotions) are in this image?. Answer following JSON format,
-            {"emotions": emotions, "activities": actions, "solutions": solutions}
-            ### Reply JSON but nothing else.###"""
-            msgs = [{'role': 'user', 'content': question}]
-            
-            res = model.chat(
-                image=image,
-                msgs=msgs,
-                tokenizer=tokenizer,
-                sampling=True,
-                temperature=0.7,
-            )
+        question = """What kind of activities, emotions and solutions(about activities and emotions) are in this image?. Answer following JSON format,
+        {"emotions": emotions, "activities": actions, "solutions": solutions}
+        ### Reply JSON but nothing else.###"""
+        msgs = [{'role': 'user', 'content': question}]
+        
+        res = model.chat(
+            image=image,
+            msgs=msgs,
+            tokenizer=tokenizer,
+            sampling=True,
+            temperature=0.7,
+        )
 
-            print("Model response:", res)  # 응답 디버깅 출력
-            try:
-                result_json = json.loads(res)
-                result_sentence = process_result(result_json)
-            except json.JSONDecodeError:
-                result_sentence = res  # JSON 파싱 실패 시 원본 응답 사용
+        print("Model response:", res)  # 응답 디버깅 출력
+        try:
+            result_json = json.loads(res)
+        except json.JSONDecodeError:
+            result_json = {"emotions": "undefined", "activities": "undefined", "solutions": "undefined"}
 
-            response_to_response_text = "This is the response to the response."
+        response_to_response_text = "This is the response to the response."
 
-            return jsonify({'response': result_sentence, 'response_to_response': response_to_response_text, 'image_base64': frame}), 200
+        return jsonify({'response': result_json, 'response_to_response': response_to_response_text, 'image_base64': frames[0]}), 200
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/analyze', methods=['POST'])
+def analyze():
+    data = request.get_json()
+    frames = data['frames']
+
+    try:
+        image_data = base64.b64decode(frames[0].split(',')[1])
+        image = Image.open(io.BytesIO(image_data)).convert('RGB')
+
+        question = """What kind of activities, emotions and solutions(about activities and emotions) are in this image?. Answer following JSON format,
+        {"emotions": emotions, "activities": actions, "solutions": solutions}
+        ### Reply JSON but nothing else.###"""
+        msgs = [{'role': 'user', 'content': question}]
+        
+        res = model.chat(
+            image=image,
+            msgs=msgs,
+            tokenizer=tokenizer,
+            sampling=True,
+            temperature=0.7,
+        )
+
+        print("Model response:", res)  # 응답 디버깅 출력
+        try:
+            result_json = json.loads(res)
+        except json.JSONDecodeError:
+            result_json = {"emotions": "undefined", "activities": "undefined", "solutions": "undefined"}
+
+        response_to_response_text = "This is the response to the response."
+
+        return jsonify({'response': result_json, 'response_to_response': response_to_response_text, 'image_base64': frames[0]}), 200
 
     except Exception as e:
         print(f"Error: {e}")
